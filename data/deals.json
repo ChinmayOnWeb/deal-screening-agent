@@ -1,0 +1,66 @@
+[
+  {
+    "timestamp": "2026-02-21T14:55:57.848034",
+    "company_name": "Not mentioned",
+    "sector": "Not mentioned",
+    "scores": {
+      "team": 1.0,
+      "market": 1.0,
+      "traction": 1.0,
+      "product": 1.0,
+      "thesis_fit": 1.0,
+      "deal_terms": 1.0,
+      "composite": 1.0
+    },
+    "decision": "\ud83d\udd34 PASS",
+    "status": "complete"
+  },
+  {
+    "timestamp": "2026-02-21T15:27:29.757133",
+    "company_name": "Not mentioned",
+    "sector": "Not mentioned",
+    "scores": {
+      "team": 1.0,
+      "market": 1.0,
+      "traction": 1.0,
+      "product": 1.0,
+      "thesis_fit": 1.0,
+      "deal_terms": 1.0,
+      "composite": 1.0
+    },
+    "decision": "\ud83d\udd34 PASS",
+    "status": "complete"
+  },
+  {
+    "timestamp": "2026-02-21T15:34:14.586367",
+    "company_name": "Not mentioned",
+    "sector": "Not mentioned",
+    "scores": {
+      "team": 2.0,
+      "market": 1.0,
+      "traction": 1.0,
+      "product": 2.0,
+      "thesis_fit": 5.0,
+      "deal_terms": 1.0,
+      "composite": 1.9
+    },
+    "decision": "\ud83d\udd34 PASS",
+    "status": "complete"
+  },
+  {
+    "timestamp": "2026-02-21T15:42:07.698158",
+    "company_name": "SHIELD (NotebookLM)",
+    "sector": "Autonomous Vehicles, Logistics, Insurance",
+    "scores": {
+      "team": 4.0,
+      "market": 8.0,
+      "traction": 9.0,
+      "product": 8.5,
+      "thesis_fit": 7.0,
+      "deal_terms": 5.0,
+      "composite": 7.3
+    },
+    "decision": "\ud83d\udfe1 REVIEW",
+    "status": "complete"
+  }
+]
