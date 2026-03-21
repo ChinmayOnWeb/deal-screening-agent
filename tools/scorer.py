@@ -2,11 +2,13 @@
 Scoring engine using Groq (free, fast, generous limits).
 """
 
-import re
 import os
 import time
+import json
+import re
 from groq import Groq
 from dotenv import load_dotenv
+from settings_store import load_settings
 
 load_dotenv()
 
@@ -46,7 +48,7 @@ def get_llm_response(prompt: str) -> str:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an expert VC analyst at a top venture capital firm. Be thorough, precise, and data-driven in your analysis."
+                        "content": "You are an expert investment deal screener at a top venture capital firm. Be thorough, precise, and data-driven in your analysis."
                     },
                     {
                         "role": "user",
@@ -97,36 +99,107 @@ def extract_scores_from_text(scoring_text: str) -> dict:
     }
 
     for key, pattern in patterns.items():
-        match = re.search(pattern, scoring_text, re.IGNORECASE)
-        if match:
-            scores[key] = float(match.group(1))
+        scores[key] = _extract_score_with_pattern(scoring_text, pattern)
+
+    # Fallback 1: JSON block
+    if _missing_score_count(scores) >= 3:
+        json_scores = _extract_scores_from_json_block(scoring_text)
+        for key, value in json_scores.items():
+            if key in scores and scores[key] == 0:
+                scores[key] = value
+
+    # Fallback 2: permissive label parsing
+    if _missing_score_count(scores) >= 2:
+        label_patterns = {
+            "team": [r"team"],
+            "market": [r"market"],
+            "traction": [r"traction"],
+            "product": [r"product"],
+            "thesis_fit": [r"thesis\s*fit", r"thesis"],
+            "deal_terms": [r"deal\s*terms?", r"terms"],
+            "composite": [r"composite"],
+        }
+        for key, aliases in label_patterns.items():
+            if scores[key] == 0:
+                scores[key] = _extract_score_by_aliases(scoring_text, aliases)
 
     if scores["composite"] == 0:
+        settings = load_settings()
         weights = {
-            "team": 0.25,
-            "market": 0.20,
-            "traction": 0.20,
-            "product": 0.15,
-            "thesis_fit": 0.10,
-            "deal_terms": 0.10
+            key: value.get("weight", 0)
+            for key, value in settings["scoring_criteria"].items()
         }
         weighted_sum = sum(scores[k] * weights[k] for k in weights)
         scores["composite"] = round(weighted_sum, 1)
 
-    return scores
+    return _validate_and_normalize_scores(scores)
+
+
+def _extract_score_with_pattern(text: str, pattern: str) -> float:
+    match = re.search(pattern, text, re.IGNORECASE)
+    if not match:
+        return 0
+    try:
+        return float(match.group(1))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _extract_scores_from_json_block(text: str) -> dict:
+    block_match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.IGNORECASE | re.DOTALL)
+    if not block_match:
+        return {}
+    try:
+        parsed = json.loads(block_match.group(1))
+    except json.JSONDecodeError:
+        return {}
+
+    return {
+        key: _to_float(parsed.get(key, 0))
+        for key in ["team", "market", "traction", "product", "thesis_fit", "deal_terms", "composite"]
+    }
+
+
+def _extract_score_by_aliases(text: str, aliases: list[str]) -> float:
+    for alias in aliases:
+        pattern = rf"{alias}[^\n:]*[:\-]?\s*(\d+\.?\d*)\s*/?\s*10"
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return _to_float(match.group(1))
+    return 0
+
+
+def _to_float(value) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _missing_score_count(scores: dict) -> int:
+    return sum(1 for key, value in scores.items() if key != "composite" and value == 0)
+
+
+def _validate_and_normalize_scores(scores: dict) -> dict:
+    cleaned = {}
+    for key, value in scores.items():
+        numeric = _to_float(value)
+        cleaned[key] = max(0, min(10, round(numeric, 1)))
+    return cleaned
 
 
 def get_decision(composite_score: float) -> dict:
     """
     Determine pass/review/fast-track based on composite score.
     """
-    if composite_score >= 7.5:
+    thresholds = load_settings()["thresholds"]
+    if composite_score >= float(thresholds["fast_track"]):
         return {
             "decision": "🟢 FAST TRACK",
             "action": "Schedule partner meeting immediately",
             "color": "green"
         }
-    elif composite_score >= 5.0:
+    elif composite_score >= float(thresholds["review"]):
         return {
             "decision": "🟡 REVIEW",
             "action": "Add to weekly review queue",

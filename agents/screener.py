@@ -5,6 +5,7 @@ deal screening workflow.
 
 import json
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
@@ -13,7 +14,7 @@ from tools.deck_parser import extract_text_from_pdf, extract_key_fields
 from tools.enrichment import enrich_company, format_enrichment_for_llm
 from tools.scorer import get_llm_response, extract_scores_from_text, get_decision, generate_decline_email
 from prompts.screening import EXTRACTION_PROMPT, SCORING_PROMPT, SUMMARY_PROMPT
-from config import FUND_CONFIG
+from settings_store import get_runtime_fund_config
 
 # Load .env from the project root directory
 env_path = Path(__file__).resolve().parent.parent / ".env"
@@ -27,7 +28,7 @@ class DealScreener:
     """
 
     def __init__(self):
-        self.fund_config = FUND_CONFIG
+        self.fund_config = get_runtime_fund_config()
 
     def screen_deal(self, uploaded_file, manual_text=None, progress_callback=None) -> dict:
         """
@@ -86,6 +87,10 @@ class DealScreener:
             return results
 
         results["stages"]["extraction"] = company_analysis
+        results["confidence"] = self._build_confidence_trace(
+            company_analysis=company_analysis,
+            enrichment_text=""
+        )
 
         # ── Stage 3: Extract company name for enrichment ────
         company_name = self._extract_company_name(company_analysis)
@@ -104,6 +109,11 @@ class DealScreener:
         except Exception as e:
             enrichment_text = f"Enrichment failed: {str(e)}"
             results["stages"]["enrichment"] = enrichment_text
+
+        results["confidence"] = self._build_confidence_trace(
+            company_analysis=company_analysis,
+            enrichment_text=enrichment_text
+        )
 
         # ── Stage 5: Scoring ────────────────────────────────
         if progress_callback:
@@ -156,7 +166,6 @@ class DealScreener:
 
     def _extract_company_name(self, analysis: str) -> str:
         """Extract company name from LLM analysis."""
-        import re
         match = re.search(
             r"\*\*Company Name:\*\*\s*(.+)",
             analysis
@@ -169,7 +178,6 @@ class DealScreener:
 
     def _extract_sector(self, analysis: str) -> str:
         """Extract sector from LLM analysis."""
-        import re
         match = re.search(
             r"\*\*Sector/Industry:\*\*\s*(.+)",
             analysis
@@ -195,7 +203,8 @@ class DealScreener:
                 "sector": results.get("sector", "Unknown"),
                 "scores": results.get("scores", {}),
                 "decision": results.get("decision", {}).get("decision", "Unknown"),
-                "status": results["status"]
+                "status": results["status"],
+                "confidence": results.get("confidence", [])
             }
 
             deals.append(deal_record)
@@ -205,3 +214,46 @@ class DealScreener:
 
         except Exception as e:
             print(f"Warning: Could not save deal - {str(e)}")
+
+    def _build_confidence_trace(self, company_analysis: str, enrichment_text: str) -> list[dict]:
+        fields = {
+            "Company Name": r"\*\*Company Name:\*\*\s*(.+)",
+            "Sector/Industry": r"\*\*Sector/Industry:\*\*\s*(.+)",
+            "Stage": r"\*\*Stage:\*\*\s*(.+)",
+            "Revenue": r"\*\*Revenue:\*\*\s*(.+)",
+            "Users/Customers": r"\*\*Users/Customers:\*\*\s*(.+)",
+            "Founders": r"\*\*Founders:\*\*\s*(.+)",
+            "TAM": r"\*\*TAM:\*\*\s*(.+)",
+            "Amount Raising": r"\*\*Amount Raising:\*\*\s*(.+)",
+            "Valuation": r"\*\*Valuation:\*\*\s*(.+)",
+        }
+        confidence_rows = []
+        enrichment_lower = enrichment_text.lower()
+
+        for field_name, pattern in fields.items():
+            match = re.search(pattern, company_analysis, re.IGNORECASE)
+            value = match.group(1).strip() if match else "Not mentioned"
+            normalized = value.lower()
+
+            if match and "not mentioned" not in normalized:
+                source = "Deck"
+                confidence = "High"
+                note = "Directly extracted from the deck text."
+            elif field_name.lower() in enrichment_lower:
+                source = "Enrichment"
+                confidence = "Medium"
+                note = "Filled using external enrichment context."
+            else:
+                source = "Inference"
+                confidence = "Low"
+                note = "Missing explicit evidence; treat as uncertain."
+
+            confidence_rows.append({
+                "field": field_name,
+                "value": value,
+                "source": source,
+                "confidence": confidence,
+                "note": note
+            })
+
+        return confidence_rows

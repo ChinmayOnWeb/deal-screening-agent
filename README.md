@@ -1,6 +1,6 @@
-# 🏦 VC Analyst Intern Agent
+# 🏦 Deal Screener
 
-An AI-powered deal screening tool that analyzes startup pitch decks and provides instant investment recommendations.
+An AI-powered deal screener that analyzes startup pitch decks and provides instant investment recommendations.
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.x-red)

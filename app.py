@@ -1,16 +1,18 @@
 """
-VC Analyst Intern Agent - Deal Screening Web App
+Deal Screener - Deal Screening Web App
 """
 
 import streamlit as st
 import json
 import os
+import pandas as pd
 from agents.screener import DealScreener
+from settings_store import load_settings, save_settings
 
 
 # ── Page Config ──────────────────────────────────────────
 st.set_page_config(
-    page_title="VC Analyst Agent",
+    page_title="Deal Screener",
     page_icon="🏦",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -37,7 +39,7 @@ st.markdown("""
 
 # ── Sidebar ──────────────────────────────────────────────
 with st.sidebar:
-    st.title("🏦 VC Analyst Agent")
+    st.title("🏦 Deal Screener")
     st.markdown("---")
 
     page = st.radio(
@@ -47,8 +49,9 @@ with st.sidebar:
     )
 
     st.markdown("---")
+    app_settings = load_settings()
     st.markdown("### Fund Thesis")
-    st.info("Early-stage B2B SaaS and AI startups")
+    st.info(app_settings["fund_config"]["thesis"])
 
     st.markdown("### Quick Stats")
     try:
@@ -207,6 +210,14 @@ if page == "📊 Screen New Deal":
 
                 with tab2:
                     st.markdown(results["stages"].get("extraction", "No extraction available."))
+                    confidence_rows = results.get("confidence", [])
+                    if confidence_rows:
+                        st.markdown("#### Source-Aware Confidence")
+                        st.dataframe(
+                            pd.DataFrame(confidence_rows),
+                            use_container_width=True,
+                            hide_index=True
+                        )
 
                 with tab3:
                     st.markdown(results["stages"].get("scoring", "No scoring available."))
@@ -273,24 +284,83 @@ elif page == "📁 Deal History":
         if not deals:
             st.info("No deals screened yet. Go screen your first deal! 🚀")
         else:
+            history_df = pd.DataFrame(deals)
+            history_df["date"] = pd.to_datetime(history_df["timestamp"], errors="coerce")
+            history_df["decision_bucket"] = history_df["decision"].fillna("Unknown").apply(
+                lambda v: "FAST TRACK" if "FAST TRACK" in v else ("REVIEW" if "REVIEW" in v else ("PASS" if "PASS" in v else "Unknown"))
+            )
+            history_df["composite"] = history_df["scores"].apply(
+                lambda s: s.get("composite") if isinstance(s, dict) else None
+            )
+
+            st.markdown("### Filters")
+            all_sectors = sorted([s for s in history_df["sector"].dropna().unique().tolist() if s])
+            selected_sectors = st.multiselect("Sector", all_sectors, default=all_sectors)
+            selected_decisions = st.multiselect(
+                "Decision",
+                ["FAST TRACK", "REVIEW", "PASS", "Unknown"],
+                default=["FAST TRACK", "REVIEW", "PASS", "Unknown"]
+            )
+            min_date = history_df["date"].min().date() if history_df["date"].notna().any() else None
+            max_date = history_df["date"].max().date() if history_df["date"].notna().any() else None
+            date_range = None
+            if min_date and max_date:
+                date_range = st.date_input("Date Range", (min_date, max_date))
+
+            filtered_df = history_df[
+                history_df["decision_bucket"].isin(selected_decisions) &
+                (
+                    history_df["sector"].isin(selected_sectors)
+                    if selected_sectors else True
+                )
+            ]
+            if date_range and len(date_range) == 2:
+                start, end = pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1])
+                filtered_df = filtered_df[
+                    (filtered_df["date"] >= start) & (filtered_df["date"] <= end)
+                ]
+
             # Summary stats
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("Total Deals", len(deals))
+                st.metric("Total Deals", len(filtered_df))
             with col2:
-                fast_track = sum(1 for d in deals if "FAST TRACK" in d.get("decision", ""))
+                fast_track = sum(1 for d in filtered_df.to_dict("records") if "FAST TRACK" in d.get("decision", ""))
                 st.metric("🟢 Fast Track", fast_track)
             with col3:
-                review = sum(1 for d in deals if "REVIEW" in d.get("decision", ""))
+                review = sum(1 for d in filtered_df.to_dict("records") if "REVIEW" in d.get("decision", ""))
                 st.metric("🟡 Review", review)
             with col4:
-                passed = sum(1 for d in deals if "PASS" in d.get("decision", ""))
+                passed = sum(1 for d in filtered_df.to_dict("records") if "PASS" in d.get("decision", ""))
                 st.metric("🔴 Passed", passed)
+
+            st.markdown("---")
+            st.markdown("### Analytics")
+            chart_col1, chart_col2 = st.columns(2)
+            with chart_col1:
+                st.markdown("**Decision Distribution**")
+                st.bar_chart(filtered_df["decision_bucket"].value_counts())
+            with chart_col2:
+                st.markdown("**Average Composite Score by Sector**")
+                sector_avg = filtered_df.dropna(subset=["composite"]).groupby("sector")["composite"].mean().sort_values(ascending=False)
+                if not sector_avg.empty:
+                    st.bar_chart(sector_avg)
+                else:
+                    st.info("No composite score data available for selected filters.")
+
+            trend_df = filtered_df.dropna(subset=["date", "composite"]).copy()
+            if not trend_df.empty:
+                trend_df["month"] = trend_df["date"].dt.to_period("M").dt.to_timestamp()
+                monthly_scores = trend_df.groupby("month")["composite"].mean()
+                st.markdown("**Average Composite Score Trend (Monthly)**")
+                st.line_chart(monthly_scores)
+            else:
+                st.info("Not enough data to plot score trends.")
 
             st.markdown("---")
 
             # Deal table
-            for i, deal in enumerate(reversed(deals)):
+            for i, deal in enumerate(reversed(filtered_df.to_dict("records"))):
                 with st.expander(
                     f"{deal.get('decision', '❓')} | "
                     f"{deal.get('company_name', 'Unknown')} | "
@@ -329,39 +399,63 @@ elif page == "⚙️ Settings":
 
     st.markdown("### Fund Configuration")
 
-    from config import FUND_CONFIG, SCORING_CRITERIA, THRESHOLDS
+    settings = load_settings()
+    fund_config = settings["fund_config"]
+    scoring_criteria = settings["scoring_criteria"]
+    thresholds = settings["thresholds"]
 
-    st.markdown("#### Current Fund Thesis")
-    st.info(FUND_CONFIG["thesis"])
+    st.markdown("#### Editable Fund Thesis")
+    fund_config["name"] = st.text_input("Fund Name", value=fund_config.get("name", ""))
+    fund_config["thesis"] = st.text_area("Fund Thesis", value=fund_config.get("thesis", ""), height=120)
 
-    st.markdown("#### Stage Focus")
-    st.write(", ".join(FUND_CONFIG["stage_focus"]))
+    st.markdown("#### Editable Stage Focus")
+    stage_focus = ", ".join(fund_config.get("stage_focus", []))
+    fund_config["stage_focus"] = [s.strip() for s in st.text_input("Stage Focus (comma separated)", value=stage_focus).split(",") if s.strip()]
 
-    st.markdown("#### Sectors of Interest")
-    for sector in FUND_CONFIG["sectors_of_interest"]:
-        st.markdown(f"- ✅ {sector}")
+    sectors_in = ", ".join(fund_config.get("sectors_of_interest", []))
+    fund_config["sectors_of_interest"] = [s.strip() for s in st.text_area("Sectors of Interest (comma separated)", value=sectors_in, height=100).split(",") if s.strip()]
 
-    st.markdown("#### Sectors to Avoid")
-    for sector in FUND_CONFIG["sectors_to_avoid"]:
-        st.markdown(f"- ❌ {sector}")
+    sectors_out = ", ".join(fund_config.get("sectors_to_avoid", []))
+    fund_config["sectors_to_avoid"] = [s.strip() for s in st.text_area("Sectors to Avoid (comma separated)", value=sectors_out, height=100).split(",") if s.strip()]
 
     st.markdown("---")
 
-    st.markdown("### Scoring Weights")
-    for criterion, details in SCORING_CRITERIA.items():
+    st.markdown("### Editable Scoring Weights")
+    for criterion, details in scoring_criteria.items():
         col1, col2 = st.columns([1, 2])
         with col1:
             st.markdown(f"**{criterion.replace('_', ' ').title()}**")
         with col2:
-            st.progress(details["weight"])
-            st.caption(f"Weight: {details['weight']*100}% — {details['description']}")
+            details["weight"] = st.slider(
+                f"{criterion}_weight",
+                min_value=0.0,
+                max_value=1.0,
+                value=float(details.get("weight", 0)),
+                step=0.01,
+                label_visibility="collapsed"
+            )
+            st.caption(f"Weight: {details['weight']*100:.0f}% — {details['description']}")
 
     st.markdown("---")
 
     st.markdown("### Decision Thresholds")
-    st.markdown(f"- 🟢 **Fast Track:** Score ≥ {THRESHOLDS['fast_track']}/10")
-    st.markdown(f"- 🟡 **Review:** Score ≥ {THRESHOLDS['review']}/10")
-    st.markdown(f"- 🔴 **Pass:** Score < {THRESHOLDS['review']}/10")
+    thresholds["fast_track"] = st.slider("Fast Track threshold", 0.0, 10.0, float(thresholds["fast_track"]), 0.1)
+    thresholds["review"] = st.slider("Review threshold", 0.0, 10.0, float(thresholds["review"]), 0.1)
+    st.markdown(f"- 🔴 **Pass:** Score < {thresholds['review']}/10")
+
+    total_weight = sum(c.get("weight", 0) for c in scoring_criteria.values())
+    if abs(total_weight - 1.0) > 0.01:
+        st.warning(f"Scoring weights currently sum to {total_weight:.2f}. Recommended total is 1.00.")
+    else:
+        st.success("Scoring weights sum to 1.00.")
+
+    if st.button("💾 Save Settings", type="primary"):
+        save_settings({
+            "fund_config": fund_config,
+            "scoring_criteria": scoring_criteria,
+            "thresholds": thresholds
+        })
+        st.success("Settings saved to data/settings.json")
 
     st.markdown("---")
 
