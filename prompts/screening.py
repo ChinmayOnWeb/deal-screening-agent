@@ -3,7 +3,7 @@ Prompt templates for the screening workflow.
 """
 
 EXTRACTION_PROMPT = """
-You are a VC analyst. Extract the following information from this pitch deck text.
+You are an investment deal screener. Extract the following information from this pitch deck text.
 If information is not found, say "Not mentioned".
 
 PITCH DECK TEXT:
@@ -54,10 +54,21 @@ Extract and return a structured analysis in this EXACT format:
 
 ## Initial Green Flags
 - List any strong positive signals
+
+## Confidence & Source Trace
+- **Company Name:** [High/Medium/Low] | Source: [Deck/Enrichment/Inference] | Note: (1 short sentence)
+- **Sector/Industry:** [High/Medium/Low] | Source: [Deck/Enrichment/Inference] | Note: (1 short sentence)
+- **Stage:** [High/Medium/Low] | Source: [Deck/Enrichment/Inference] | Note: (1 short sentence)
+- **Revenue:** [High/Medium/Low] | Source: [Deck/Enrichment/Inference] | Note: (1 short sentence)
+- **Users/Customers:** [High/Medium/Low] | Source: [Deck/Enrichment/Inference] | Note: (1 short sentence)
+- **Founders:** [High/Medium/Low] | Source: [Deck/Enrichment/Inference] | Note: (1 short sentence)
+- **TAM:** [High/Medium/Low] | Source: [Deck/Enrichment/Inference] | Note: (1 short sentence)
+- **Amount Raising:** [High/Medium/Low] | Source: [Deck/Enrichment/Inference] | Note: (1 short sentence)
+- **Valuation:** [High/Medium/Low] | Source: [Deck/Enrichment/Inference] | Note: (1 short sentence)
 """
 
 SCORING_PROMPT = """
-You are a senior VC analyst at a fund with this thesis: {fund_thesis}
+You are a senior investment deal screener at a fund with this thesis: {fund_thesis}
 
 Based on the following company analysis, provide a detailed scoring.
 
@@ -93,6 +104,19 @@ Return your analysis in this EXACT format:
 
 ## COMPOSITE SCORE: X.X/10
 (Weighted average based on: Team 25%, Market 20%, Traction 20%, Product 15%, Thesis Fit 10%, Deal Terms 10%)
+
+## MACHINE READABLE SCORES (JSON)
+```json
+{
+  "team": X,
+  "market": X,
+  "traction": X,
+  "product": X,
+  "thesis_fit": X,
+  "deal_terms": X,
+  "composite": X.X
+}
+```
 
 ## KEY RISKS
 1. 
