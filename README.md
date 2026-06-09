@@ -32,9 +32,16 @@ The current interface uses a professional investment-workbench layout with:
 - tabbed analysis views for memo, extraction, scoring, research, confidence, and communications,
 - deal history analytics and configurable fund settings.
 
-## Fellowship Technical Sample Slides
+## Technical Sample Slides
 
-A simple presentation deck for fellowship applications is available at [`docs/fellowship_technical_sample_slides.md`](docs/fellowship_technical_sample_slides.md). It is written in Markdown/Marp format so it can be previewed as slides or copied into Google Slides/PowerPoint.
+A simple presentation deck is available at [`docs/technical_sample_slides.md`](docs/technical_sample_slides.md). It is written in Markdown/Marp format so it can be previewed as slides or copied into Google Slides/PowerPoint.
+
+## GitHub Pages
+
+This repository is ready to be hosted with GitHub Pages from the `docs/` directory.
+
+- Site entrypoint: [`docs/index.html`](docs/index.html)
+- Expected URL: `https://chinmayonweb.github.io/deal-screening-agent/`
 
 ## Tech Stack
 
