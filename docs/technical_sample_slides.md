@@ -1,7 +1,7 @@
 ---
 marp: true
 title: Deal Screener Technical Sample
-description: Professional fellowship application slides for an AI-powered startup deal intelligence workbench.
+description: Professional technical sample slides for an AI-powered startup deal intelligence workbench.
 theme: default
 paginate: true
 style: |
