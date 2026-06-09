@@ -123,7 +123,7 @@ def render_page_as_small_image(page, max_size_bytes=2_500_000) -> str:
         size_bytes = len(img_base64)
 
         if size_bytes < max_size_bytes:
-            print(f"    📐 Zoom {zoom}x → {round(size_bytes/1024)}KB")
+            print(f"    Zoom {zoom}x -> {round(size_bytes/1024)}KB")
             return img_base64
 
     # Last resort: tiny JPEG
@@ -140,7 +140,7 @@ def render_page_as_small_image(page, max_size_bytes=2_500_000) -> str:
         jpeg_bytes = jpeg_buffer.getvalue()
         img_base64 = base64.b64encode(jpeg_bytes).decode("utf-8")
 
-        print(f"    📐 JPEG fallback → {round(len(img_base64)/1024)}KB")
+        print(f"    JPEG fallback -> {round(len(img_base64)/1024)}KB")
         return img_base64
 
     except Exception:
@@ -174,8 +174,8 @@ def extract_with_llama_vision(uploaded_file) -> str:
             "meta-llama/llama-4-maverick-17b-128e-instruct",
         ]
 
-        print(f"📸 Processing {total_pages} pages with Llama 4 Vision...")
-        print(f"📤 Sending 1 image per request (to stay under size limit)")
+        print(f"Processing {total_pages} pages with Llama 4 Vision...")
+        print(f"Sending 1 image per request (to stay under size limit)")
 
         for page_num in range(total_pages):
             page = doc[page_num]
@@ -188,7 +188,7 @@ def extract_with_llama_vision(uploaded_file) -> str:
                 text += "[Could not render this page]\n"
                 continue
 
-            print(f"\n  📤 Page {page_num + 1}/{total_pages} ({round(len(img_base64)/1024)}KB)")
+            print(f"\n  Page {page_num + 1}/{total_pages} ({round(len(img_base64)/1024)}KB)")
 
             # Try each vision model
             success = False
@@ -232,7 +232,7 @@ def extract_with_llama_vision(uploaded_file) -> str:
                         slide_text = response.choices[0].message.content
                         text += f"\n--- Page {page_num + 1} ---\n"
                         text += slide_text
-                        print(f"  ✅ Page {page_num + 1} extracted via {model.split('/')[-1]}")
+                        print(f"  Page {page_num + 1} extracted via {model.split('/')[-1]}")
                         success = True
 
                         # Rate limit pause
@@ -243,13 +243,13 @@ def extract_with_llama_vision(uploaded_file) -> str:
                         error_msg = str(e)
                         if "429" in error_msg or "rate_limit" in error_msg.lower():
                             wait_time = 15 * (attempt + 1)
-                            print(f"  ⏳ Rate limited. Waiting {wait_time}s...")
+                            print(f"  Rate limited. Waiting {wait_time}s...")
                             time.sleep(wait_time)
                         elif "413" in error_msg or "too_large" in error_msg.lower():
-                            print(f"  ⚠️ Still too large for {model.split('/')[-1]}, trying next model...")
+                            print(f"  Still too large for {model.split('/')[-1]}, trying next model...")
                             break
                         else:
-                            print(f"  ❌ {model.split('/')[-1]}: {error_msg}")
+                            print(f"  {model.split('/')[-1]}: {error_msg}")
                             break
 
                 if success:
@@ -277,27 +277,27 @@ def extract_text_from_pdf(uploaded_file) -> str:
     # Method 1: PyMuPDF text
     text = extract_text_with_pymupdf(uploaded_file)
     if text and len(text) > 200:
-        print(f"✅ Method 1 (text): {len(text)} chars")
+        print(f"Method 1 (text): {len(text)} chars")
         return text
 
     # Method 2: PyMuPDF blocks
     text2 = extract_blocks_with_pymupdf(uploaded_file)
     if text2 and len(text2) > 200:
-        print(f"✅ Method 2 (blocks): {len(text2)} chars")
+        print(f"Method 2 (blocks): {len(text2)} chars")
         return text2
 
     # Method 3: PyMuPDF dict
     text3 = extract_dict_with_pymupdf(uploaded_file)
     if text3 and len(text3) > 200:
-        print(f"✅ Method 3 (dict): {len(text3)} chars")
+        print(f"Method 3 (dict): {len(text3)} chars")
         return text3
 
     # Method 4: Llama 4 Vision
-    print("📸 Text methods failed. Using Llama 4 Vision...")
+    print("Text methods failed. Using Llama 4 Vision...")
     vision_text = extract_with_llama_vision(uploaded_file)
 
     if vision_text and not vision_text.startswith("ERROR") and len(vision_text) > 100:
-        print(f"✅ Method 4 (Llama Vision): {len(vision_text)} chars")
+        print(f"Method 4 (Llama Vision): {len(vision_text)} chars")
         return vision_text
 
     # Return best of whatever we got

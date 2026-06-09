@@ -24,7 +24,7 @@ load_dotenv(dotenv_path=env_path)
 class DealScreener:
     """
     Orchestrates the full deal screening pipeline:
-    PDF → Parse → Extract → Enrich → Score → Decision
+    PDF -> Parse -> Extract -> Enrich -> Score -> Decision
     """
 
     def __init__(self):
@@ -48,14 +48,14 @@ class DealScreener:
             "stages": {}
         }
 
-        # ── Stage 1: Parse PDF ──────────────────────────────
+        # -- Stage 1: Parse PDF ------------------------------
         if progress_callback:
-            progress_callback("📄 Parsing pitch deck... (image decks take ~1-2 min)", 10)
+            progress_callback("Parsing pitch deck... (image decks take 1-2 minutes)", 10)
 
         # Use manual text if provided, otherwise parse PDF
         if manual_text:
             deck_text = manual_text
-            print("✅ Using manually provided text")
+            print("Using manually provided text")
         elif uploaded_file:
             deck_text = extract_text_from_pdf(uploaded_file)
         else:
@@ -74,9 +74,9 @@ class DealScreener:
             "key_fields": key_fields
         }
 
-        # ── Stage 2: LLM Extraction ────────────────────────
+        # -- Stage 2: LLM Extraction ------------------------
         if progress_callback:
-            progress_callback("🔍 Extracting company information...", 30)
+            progress_callback("Extracting company information...", 30)
 
         extraction_prompt = EXTRACTION_PROMPT.format(deck_text=deck_text[:15000])
         company_analysis = get_llm_response(extraction_prompt)
@@ -92,15 +92,15 @@ class DealScreener:
             enrichment_text=""
         )
 
-        # ── Stage 3: Extract company name for enrichment ────
+        # -- Stage 3: Extract company name for enrichment ----
         company_name = self._extract_company_name(company_analysis)
         sector = self._extract_sector(company_analysis)
         results["company_name"] = company_name
         results["sector"] = sector
 
-        # ── Stage 4: Web Enrichment ─────────────────────────
+        # -- Stage 4: Web Enrichment -------------------------
         if progress_callback:
-            progress_callback("🌐 Researching company online...", 50)
+            progress_callback("Researching company online...", 50)
 
         try:
             enrichment_data = enrich_company(company_name, sector)
@@ -115,9 +115,9 @@ class DealScreener:
             enrichment_text=enrichment_text
         )
 
-        # ── Stage 5: Scoring ────────────────────────────────
+        # -- Stage 5: Scoring --------------------------------
         if progress_callback:
-            progress_callback("📊 Scoring deal...", 70)
+            progress_callback("Scoring deal...", 70)
 
         scoring_prompt = SCORING_PROMPT.format(
             fund_thesis=self.fund_config["thesis"],
@@ -133,9 +133,9 @@ class DealScreener:
         results["scores"] = scores
         results["decision"] = decision
 
-        # ── Stage 6: Executive Summary ──────────────────────
+        # -- Stage 6: Executive Summary ----------------------
         if progress_callback:
-            progress_callback("📝 Writing summary...", 90)
+            progress_callback("Writing summary...", 90)
 
         summary_prompt = SUMMARY_PROMPT.format(
             full_analysis=f"{company_analysis}\n\n{scoring_response}"
@@ -143,10 +143,10 @@ class DealScreener:
         summary = get_llm_response(summary_prompt)
         results["stages"]["summary"] = summary
 
-        # ── Stage 7: Decline Email (if pass) ────────────────
+        # -- Stage 7: Decline Email (if pass) ----------------
         if decision["color"] == "red":
             if progress_callback:
-                progress_callback("✉️ Drafting decline email...", 95)
+                progress_callback("Drafting decline email...", 95)
 
             decline_email = generate_decline_email(
                 company_name=company_name,
@@ -154,10 +154,10 @@ class DealScreener:
             )
             results["stages"]["decline_email"] = decline_email
 
-        # ── Done ────────────────────────────────────────────
+        # -- Done --------------------------------------------
         results["status"] = "complete"
         if progress_callback:
-            progress_callback("✅ Screening complete!", 100)
+            progress_callback("Screening complete.", 100)
 
         # Save to local database
         self._save_deal(results)
