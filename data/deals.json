@@ -12,7 +12,7 @@
       "deal_terms": 1.0,
       "composite": 1.0
     },
-    "decision": "\ud83d\udd34 PASS",
+    "decision": "PASS",
     "status": "complete"
   },
   {
@@ -28,7 +28,7 @@
       "deal_terms": 1.0,
       "composite": 1.0
     },
-    "decision": "\ud83d\udd34 PASS",
+    "decision": "PASS",
     "status": "complete"
   },
   {
@@ -44,7 +44,7 @@
       "deal_terms": 1.0,
       "composite": 1.9
     },
-    "decision": "\ud83d\udd34 PASS",
+    "decision": "PASS",
     "status": "complete"
   },
   {
@@ -60,7 +60,7 @@
       "deal_terms": 5.0,
       "composite": 7.3
     },
-    "decision": "\ud83d\udfe1 REVIEW",
+    "decision": "REVIEW",
     "status": "complete"
   }
 ]

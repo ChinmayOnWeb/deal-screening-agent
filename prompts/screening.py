@@ -136,7 +136,7 @@ Return your analysis in this EXACT format:
 5. 
 
 ## RECOMMENDATION
-🟢 FAST TRACK / 🟡 REVIEW / 🔴 PASS
+FAST TRACK / REVIEW / PASS
 
 **Reasoning:** (3-4 sentences on overall recommendation)
 

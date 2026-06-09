@@ -15,9 +15,9 @@ load_dotenv()
 GROQ_KEY = os.getenv("GROQ_API_KEY")
 
 if not GROQ_KEY:
-    print("❌ No GROQ_API_KEY found in .env file!")
+    print("No GROQ_API_KEY found in .env file.")
 else:
-    print(f"✅ Groq configured (key ends in ...{GROQ_KEY[-4:]})")
+    print(f"Groq configured (key ends in ...{GROQ_KEY[-4:]})")
 
 client = None
 if GROQ_KEY:
@@ -59,16 +59,16 @@ def get_llm_response(prompt: str) -> str:
                 max_tokens=4096
             )
             result = response.choices[0].message.content
-            print(f"✅ Groq ({model}) responded")
+            print(f"Groq ({model}) responded")
             return result
 
         except Exception as e:
             error_msg = str(e)
             if "429" in error_msg or "rate_limit" in error_msg.lower():
-                print(f"⚠️ {model} rate limited, trying next...")
+                print(f"{model} rate limited, trying next...")
                 time.sleep(2)
             else:
-                print(f"❌ {model} error: {error_msg}")
+                print(f"{model} error: {error_msg}")
                 continue
 
     return "ERROR: All models rate limited. Please wait a moment and try again."
@@ -195,19 +195,19 @@ def get_decision(composite_score: float) -> dict:
     thresholds = load_settings()["thresholds"]
     if composite_score >= float(thresholds["fast_track"]):
         return {
-            "decision": "🟢 FAST TRACK",
+            "decision": "FAST TRACK",
             "action": "Schedule partner meeting immediately",
             "color": "green"
         }
     elif composite_score >= float(thresholds["review"]):
         return {
-            "decision": "🟡 REVIEW",
+            "decision": "REVIEW",
             "action": "Add to weekly review queue",
             "color": "orange"
         }
     else:
         return {
-            "decision": "🔴 PASS",
+            "decision": "PASS",
             "action": "Send polite decline email",
             "color": "red"
         }
